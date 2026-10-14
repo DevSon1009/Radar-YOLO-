@@ -1,0 +1,9 @@
+
+# Local secrets and data
+secret.key
+radar.db
+.env
+.env.*
+!*.example
+sau.txt
+truoc.txt
