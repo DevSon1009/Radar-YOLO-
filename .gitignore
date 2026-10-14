@@ -1,9 +1,12 @@
-
-# Local secrets and data
-secret.key
-radar.db
+﻿__pycache__/
+*.pyc
+.venv/
+venv/
 .env
-.env.*
-!*.example
-sau.txt
-truoc.txt
+*.pt
+*.onnx
+*.log
+.vscode/
+.idea/
+build/
+.pio/
