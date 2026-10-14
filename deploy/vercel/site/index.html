@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#16222c" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Radar IoT" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <title>Radar IoT - Giám sát xâm nhập</title>
+    <style>
+      :root {
+        --bg: #f2f4f6;
+        --card: #fff;
+        --ink: #16222c;
+        --mute: #5d6b76;
+        --line: #d9dfe4;
+        --armed: #0e7c66;
+        --off: #6b7780;
+        --detect: #b97d00;
+        --alarm: #c62828;
+        --ack: #2f5da8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 "Segoe UI",
+          system-ui,
+          sans-serif;
+      }
+      header {
+        background: var(--ink);
+        color: #fff;
+        padding: 16px 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 32px;
+        align-items: center;
+        transition: background 0.3s;
+      }
+      header.alarm {
+        background: var(--alarm);
+      }
+      header h1 {
+        font-size: 20px;
+        margin: 0;
+        font-weight: 600;
+        margin-right: auto;
+      }
+      .stat b {
+        font-size: 22px;
+        margin-right: 6px;
+      }
+      .stat {
+        color: #cfd8de;
+      }
+      header.alarm .stat {
+        color: #ffe3e3;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px;
+        display: grid;
+        gap: 24px;
+      }
+      h2 {
+        font-size: 16px;
+        margin: 0 0 12px;
+      }
+      .devices {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-left: 6px solid var(--c, var(--off));
+        border-radius: 6px;
+        padding: 16px;
+      }
+      .card.ALARMING {
+        animation: pulse 1s infinite alternate;
+      }
+      @keyframes pulse {
+        to {
+          box-shadow: 0 0 0 4px rgba(198, 40, 40, 0.25);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .card.ALARMING {
+          animation: none;
+        }
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .name {
+        font-weight: 600;
+      }
+      .zone,
+      .seen {
+        color: var(--mute);
+        font-size: 13px;
+      }
+      .state {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--c);
+        margin: 8px 0 12px;
+      }
+      .bar {
+        display: grid;
+        grid-template-columns: 90px 1fr 32px;
+        gap: 8px;
+        align-items: center;
+        font-size: 13px;
+        color: var(--mute);
+        margin: 4px 0;
+      }
+      .bar i {
+        display: block;
+        height: 8px;
+        background: #e6ebef;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .bar i span {
+        display: block;
+        height: 100%;
+        background: var(--c);
+        transition: width 0.3s;
+      }
+      .cam {
+        font-size: 14px;
+        margin: 10px 0 0;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .cam .ok {
+        background: var(--alarm);
+        color: #fff;
+        border-radius: 10px;
+        padding: 2px 8px;
+        font-size: 12px;
+      }
+      .live {
+        display: block;
+        width: 100%;
+        max-width: 640px;
+        border-radius: 6px;
+        background: #0d1419;
+        min-height: 120px;
+      }
+      .hbtn {
+        border-color: #fff;
+        color: #fff;
+        background: transparent;
+        padding: 4px 10px;
+        font-size: 13px;
+      }
+      .hbtn:hover:not(:disabled) {
+        background: #fff;
+        color: var(--ink);
+      }
+      #login {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+      }
+      #login form {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 28px;
+        width: min(360px, 92vw);
+        display: grid;
+        gap: 12px;
+      }
+      #login h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      input,
+      select {
+        font: inherit;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        width: 100%;
+        background: #fff;
+        color: var(--ink);
+      }
+      input:focus-visible,
+      select:focus-visible {
+        outline: 3px solid var(--ack);
+        outline-offset: 1px;
+      }
+      .err {
+        color: var(--alarm);
+        font-size: 14px;
+        min-height: 20px;
+      }
+      .uform {
+        display: grid;
+        grid-template-columns: 1fr 1fr 120px auto;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      @media (max-width: 800px) {
+        .uform {
+          grid-template-columns: 1fr;
+        }
+      }
+      .btns {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+        flex-wrap: wrap;
+      }
+      .pushbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      #pushStatus {
+        color: #cfd8de;
+        font-size: 13px;
+      }
+      button {
+        font: inherit;
+        padding: 7px 12px;
+        border: 1px solid var(--ink);
+        background: #fff;
+        color: var(--ink);
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      button:hover:not(:disabled) {
+        background: var(--ink);
+        color: #fff;
+      }
+      button:focus-visible {
+        outline: 3px solid var(--ack);
+        outline-offset: 2px;
+      }
+      button:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+      button.ack {
+        border-color: var(--alarm);
+        color: var(--alarm);
+      }
+      button.ack:hover:not(:disabled) {
+        background: var(--alarm);
+        color: #fff;
+      }
+      .dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        margin-right: 6px;
+        background: var(--off);
+      }
+      .dot.on {
+        background: var(--armed);
+      }
+      .panel {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 16px;
+        overflow-x: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 7px 10px;
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+      }
+      th {
+        color: var(--mute);
+        font-weight: 600;
+      }
+      .tag {
+        padding: 2px 8px;
+        border-radius: 10px;
+        color: #fff;
+        font-size: 12px;
+        background: var(--off);
+      }
+      .empty {
+        color: var(--mute);
+        padding: 8px 0;
+      }
+      .two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      @media (max-width: 800px) {
+        .two {
+          grid-template-columns: 1fr;
+        }
+        main {
+          padding: 16px;
+        }
+      }
+      @media (max-width: 600px) {
+        header {
+          padding: 12px;
+          gap: 8px 12px;
+        }
+        header h1 {
+          width: 100%;
+          font-size: 18px;
+        }
+        main {
+          padding: 12px;
+          gap: 16px;
+        }
+        .devices {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .card,
+        .panel {
+          padding: 12px;
+        }
+        .btns button {
+          flex: 1 1 135px;
+          min-height: 42px;
+        }
+        .pushbox button {
+          min-height: 42px;
+        }
+        table {
+          font-size: 12px;
+        }
+        th,
+        td {
+          padding: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="login">
+      <form onsubmit="doLogin(event)">
+        <h1>Radar IoT · Đăng nhập</h1>
+        <label
+          >Tên đăng nhập<input id="lu" autocomplete="username" required
+        /></label>
+        <label
+          >Mật khẩu<input
+            id="lp"
+            type="password"
+            autocomplete="current-password"
+            required
+        /></label>
+        <div class="err" id="lerr"></div>
+        <button type="submit">Đăng nhập</button>
+      </form>
+    </div>
+    <header id="hdr">
+      <h1>Radar IoT · Giám sát xâm nhập</h1>
+      <span class="stat"><b id="sDev">0</b>thiết bị</span>
+      <span class="stat"><b id="sOn">0</b>đang online</span>
+      <span class="stat"><b id="sAct">0</b>cảnh báo đang mở</span>
+      <span class="stat" id="sWs">Mất kết nối</span>
+      <span class="stat" id="who"></span>
+      <div class="pushbox">
+        <button class="hbtn" id="pushBtn" onclick="togglePush()">Bật thông báo đẩy</button>
+        <span id="pushStatus" role="status">Thông báo chưa bật</span>
+      </div>
+      <button class="hbtn" onclick="changePw()">Đổi mật khẩu</button>
+      <button class="hbtn" onclick="logout()">Đăng xuất</button>
+    </header>
+    <main>
+      <section>
+        <h2>Thiết bị</h2>
+        <div class="devices" id="devices">
+          <div class="empty">
+            Chưa có thiết bị nào. Chạy simulator.py hoặc bật ESP32.
+          </div>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Camera trực tiếp</h2>
+        <img class="live" id="live" alt="Video camera YOLO" />
+        <div class="empty" id="liveMsg">
+          Chạy camera trên laptop và đăng nhập để xem trực tiếp.
+        </div>
+      </section>
+      <section class="panel" id="usersPanel" hidden>
+        <h2>Quản lý tài khoản</h2>
+        <div id="users"></div>
+        <div class="uform">
+          <input
+            id="nu"
+            placeholder="Tên đăng nhập (từ 3 ký tự)"
+            autocomplete="off"
+          />
+          <input
+            id="np"
+            type="password"
+            placeholder="Mật khẩu (từ 6 ký tự)"
+            autocomplete="new-password"
+          />
+          <select id="nr">
+            <option value="user">Người dùng</option>
+            <option value="admin">Quản trị</option>
+          </select>
+          <button onclick="addUser()">Tạo tài khoản</button>
+        </div>
+        <div class="err" id="uerr"></div>
+      </section>
+      <div class="two">
+        <section class="panel">
+          <h2>Cảnh báo gần đây</h2>
+          <div id="alerts"></div>
+        </section>
+        <section class="panel">
+          <h2>Sự kiện trực tiếp</h2>
+          <div id="events"></div>
+        </section>
+      </div>
+    </main>
+    <script>
+      const COLORS = {
+        DISARMED: "--off",
+        ARMED: "--armed",
+        DETECTED: "--detect",
+        ALARMING: "--alarm",
+        ACKNOWLEDGED: "--ack",
+      };
+      const VI = {
+        DISARMED: "Tắt giám sát",
+        ARMED: "Đang giám sát",
+        DETECTED: "Phát hiện người",
+        ALARMING: "ĐANG BÁO ĐỘNG",
+        ACKNOWLEDGED: "Đã xác nhận",
+      };
+      const AV = {
+        OPEN: "Đang báo động",
+        ACKED: "Đã xác nhận",
+        CLEARED: "Đã hết",
+      };
+      const ACOL = { OPEN: "--alarm", ACKED: "--ack", CLEARED: "--off" };
+      const $ = (id) => document.getElementById(id);
+      const esc = (s) =>
+        String(s).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      const col = (v) => `var(${v})`;
+      const hhmm = (ts) => new Date(ts * 1000).toLocaleTimeString("vi-VN");
+      const ago = (ts) => {
+        const s = Math.max(0, Math.round(Date.now() / 1000 - ts));
+        return s < 60 ? s + " giây trước" : Math.round(s / 60) + " phút trước";
+      };
+      const connectionParams = new URLSearchParams(location.search);
+      function configuredOrigin(param, storageKey) {
+        const requested = connectionParams.get(param);
+        if (requested) {
+          const parsed = new URL(requested);
+          if (
+            !["http:", "https:"].includes(parsed.protocol) ||
+            parsed.username ||
+            parsed.password ||
+            parsed.pathname !== "/" ||
+            parsed.search ||
+            parsed.hash
+          ) {
+            throw new Error(`Địa chỉ ${param} không hợp lệ`);
+          }
+          localStorage.setItem(storageKey, parsed.origin);
+          return parsed.origin;
+        }
+        return localStorage.getItem(storageKey) || "";
+      }
+      let BACKEND_ORIGIN, CAMERA_STREAM_ORIGIN;
+      try {
+        BACKEND_ORIGIN = configuredOrigin("backend", "radarBackendOrigin");
+        CAMERA_STREAM_ORIGIN = configuredOrigin("stream", "radarCameraStreamOrigin");
+        if (connectionParams.has("backend") || connectionParams.has("stream")) {
+          history.replaceState(null, "", location.pathname + location.hash);
+        }
+      } catch (error) {
+        BACKEND_ORIGIN = "";
+        CAMERA_STREAM_ORIGIN = "";
+        console.error(error);
+      }
+      let TOKEN = null,
+        ME = null,
+        ws = null,
+        started = false,
+        pingT = null;
+      try {
+        TOKEN = localStorage.getItem("tk");
+      } catch (e) {}
+      const api = async (p, o = {}) => {
+        o.headers = {
+          ...(o.headers || {}),
+          ...(TOKEN ? { Authorization: "Bearer " + TOKEN } : {}),
+        };
+        const r = await fetch(BACKEND_ORIGIN + "/api" + p, o);
+        if (r.status === 401) {
+          showLogin();
+          throw new Error("Hết phiên đăng nhập");
+        }
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok)
+          throw new Error(
+            typeof j.detail === "string" ? j.detail : "Dữ liệu không hợp lệ",
+          );
+        return j;
+      };
+      const post = (p, b) =>
+        api(p, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(b),
+        });
+      const isAdmin = () => ME && ME.role === "admin";
+
+      function urlBase64ToUint8Array(value) {
+        const padding = "=".repeat((4 - (value.length % 4)) % 4);
+        const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+        return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+      }
+
+      async function updatePushStatus() {
+        const button = $("pushBtn");
+        if (!window.isSecureContext || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+          button.disabled = true;
+          $("pushStatus").textContent = "Thông báo đẩy cần HTTPS và trình duyệt hỗ trợ";
+          return;
+        }
+        const needsIosInstall =
+          /iPad|iPhone|iPod/.test(navigator.userAgent) && !navigator.standalone;
+        if (needsIosInstall) {
+          button.disabled = true;
+          $("pushStatus").textContent =
+            "iPhone/iPad: thêm web vào Màn hình chính rồi mở ứng dụng để bật thông báo";
+          return;
+        }
+        $("pushStatus").textContent = "Đang kiểm tra trạng thái thông báo…";
+        const status = await api("/push/status");
+        const registration = await navigator.serviceWorker.getRegistration("/");
+        const subscription = registration
+          ? await registration.pushManager.getSubscription()
+          : null;
+        const subscribed = !!subscription && status.endpoints.includes(subscription.endpoint);
+        button.textContent = subscribed ? "Tắt thông báo đẩy trên máy này" : "Bật thông báo đẩy";
+        $("pushStatus").textContent = subscribed
+          ? "Máy này sẽ nhận cảnh báo kể cả khi đóng web"
+          : status.count
+            ? `Đang nhận thông báo trên ${status.count} thiết bị khác`
+            : Notification.permission === "denied"
+              ? "Quyền thông báo đang bị chặn trong cài đặt trình duyệt"
+              : "Bật để nhận cảnh báo xâm nhập khi đóng web";
+      }
+
+      async function togglePush() {
+        try {
+          if (!window.isSecureContext || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+            throw new Error("Hãy mở dashboard qua HTTPS trên điện thoại để bật thông báo đẩy.");
+          }
+          if (Notification.permission === "default") {
+            const permission = await Notification.requestPermission();
+            if (permission !== "granted") {
+              throw new Error("Chưa được cấp quyền thông báo. Hãy cho phép thông báo trong cài đặt trình duyệt.");
+            }
+          }
+          if (Notification.permission !== "granted") {
+            throw new Error("Quyền thông báo đang bị chặn trong cài đặt trình duyệt.");
+          }
+          await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+          const registration = await navigator.serviceWorker.ready;
+          if (!registration.active) {
+            throw new Error("Service Worker chưa sẵn sàng. Hãy tải lại trang rồi thử lại.");
+          }
+          let subscription = await registration.pushManager.getSubscription();
+          const status = await api("/push/status");
+          if (subscription && status.endpoints.includes(subscription.endpoint)) {
+            await api("/push/subscribe", {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ endpoint: subscription.endpoint }),
+            });
+            await subscription.unsubscribe();
+            await updatePushStatus();
+            return;
+          }
+          const config = await api("/push/config");
+          if (!subscription) {
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(config.public_key),
+            });
+          }
+          await post("/push/subscribe", subscription.toJSON());
+          await updatePushStatus();
+          alert("Đã bật thông báo đẩy trên thiết bị này.");
+        } catch (error) {
+          $("pushStatus").textContent = error.message;
+          alert(error.message);
+        }
+      }
+
+      async function camToggle(id, on) {
+        try {
+          await post(`/camera/${encodeURIComponent(id)}/enable`, {
+            enabled: on,
+          });
+          startLive();
+          loadDevices();
+        } catch (e) {
+          alert(e.message);
+        }
+      }
+      async function cmd(id, c) {
+        try {
+          await post(`/devices/${encodeURIComponent(id)}/command`, { cmd: c });
+          await loadDevices();
+        } catch (e) {
+          alert(e.message);
+        }
+      }
+
+      async function loadDevices() {
+        const [devs, st] = await Promise.all([api("/devices"), api("/stats")]);
+        $("sDev").textContent = st.devices;
+        $("sOn").textContent = st.online;
+        $("sAct").textContent = st.alerts_active;
+        $("hdr").classList.toggle(
+          "alarm",
+          devs.some((d) => d.state === "ALARMING"),
+        );
+        if (!devs.length) {
+          $("devices").innerHTML =
+            '<div class="empty">Đang chờ ESP32 gửi dữ liệu. Kiểm tra ESP32 đang bật, cùng Wi‑Fi và API_BASE trỏ đúng IP máy chạy backend.</div>';
+          return;
+        }
+        $("devices").innerHTML = devs
+          .map(
+            (d) => {
+              const canControl = d.online && d.source !== "simulator";
+              const outputDisabled = !canControl ? "disabled" : "";
+              const sensorStatus =
+                d.radar_ok === true || d.radar_ok === 1
+                  ? "LD2410C đang kết nối"
+                  : d.source === "simulation"
+                    ? "Đang mô phỏng (radar chưa kết nối)"
+                    : d.online
+                      ? "LD2410C chưa kết nối"
+                      : "Chưa có dữ liệu mới từ ESP32";
+              const distance = (cm) =>
+                cm == null || cm <= 0 ? "—" : `${(cm / 100).toFixed(2)} m`;
+              return `
+  <div class="card ${d.state}" style="--c:${col(COLORS[d.state])}">
+    <div class="top"><span class="name"><span class="dot ${d.online ? "on" : ""}"></span>${esc(d.name)}</span><span class="seen">${d.online ? "online" : "offline"} · ${ago(d.last_seen)}</span></div>
+    <div class="zone">${esc(d.zone)}</div>
+    <div class="state">${VI[d.state]}</div>
+    <div class="bar">Chuyển động<i><span style="width:${Math.min(d.moving, 100)}%"></span></i><b>${d.moving}</b></div>
+    <div class="bar">Đứng yên<i><span style="width:${Math.min(d.stationary, 100)}%"></span></i><b>${d.stationary}</b></div>
+    <div class="cam">Radar: ${sensorStatus} · Di chuyển ${distance(d.moving_distance_cm)} · Đứng yên ${distance(d.stationary_distance_cm)}</div>
+    <div class="cam">Đèn: ${d.light_on == null ? "chưa có dữ liệu" : d.light_on ? "đang bật" : "đang tắt"} · Còi: ${d.buzzer_on == null ? "chưa có dữ liệu" : d.buzzer_on ? "đang bật" : "đang tắt"}${d.state === "ALARMING" ? " (có báo động)" : ""}</div>
+    <div class="cam">${d.camera_enabled === false ? "Camera: đã tắt" : d.camera_persons == null ? "Camera: chưa kết nối" : "Camera: " + d.camera_persons + " người"}${(d.state === "DETECTED" || d.state === "ALARMING") && d.camera_persons > 0 ? '<span class="ok">Camera xác nhận có người</span>' : ""}</div>
+    <div class="btns">
+      ${
+        isAdmin()
+          ? `<button onclick="cmd('${esc(d.id)}','arm')" ${!d.online || d.state === "ARMED" ? "disabled" : ""}>Bật giám sát</button>
+      <button onclick="cmd('${esc(d.id)}','disarm')" ${!d.online || d.state === "DISARMED" ? "disabled" : ""}>Tắt giám sát</button>
+      <button onclick="cmd('${esc(d.id)}','light_on')" ${outputDisabled}>Bật đèn</button>
+      <button onclick="cmd('${esc(d.id)}','light_off')" ${outputDisabled}>Tắt đèn</button>
+      <button onclick="cmd('${esc(d.id)}','buzzer_on')" ${outputDisabled}>Bật còi</button>
+      <button onclick="cmd('${esc(d.id)}','buzzer_off')" ${outputDisabled}>Tắt còi</button>
+      <button onclick="cmd('${esc(d.id)}','simulate_on')" ${!d.online ? "disabled" : ""}>Bật mô phỏng</button>
+      <button onclick="cmd('${esc(d.id)}','simulate_off')" ${!d.online ? "disabled" : ""}>Tắt mô phỏng</button>`
+          : ""
+      }
+      ${isAdmin() ? `<button onclick="camToggle('${esc(d.id)}',${d.camera_enabled === false})">${d.camera_enabled === false ? "Bật camera" : "Tắt camera"}</button>` : ""}
+      <button class="ack" onclick="cmd('${esc(d.id)}','ack')" ${!d.online || d.state !== "ALARMING" ? "disabled" : ""}>Xác nhận</button>
+    </div>
+  </div>`;
+            },
+          )
+          .join("");
+      }
+
+      async function loadAlerts() {
+        const a = await api("/alerts?limit=10");
+        $("alerts").innerHTML = a.length
+          ? `<table><tr><th>Thiết bị</th><th>Bắt đầu</th><th>Trạng thái</th></tr>` +
+            a
+              .map(
+                (x) =>
+                  `<tr><td>${esc(x.device_id)}</td><td>${hhmm(x.started_at)}</td><td><span class="tag" style="background:${col(ACOL[x.status])}">${AV[x.status] || x.status}</span></td></tr>`,
+              )
+              .join("") +
+            `</table>`
+          : '<div class="empty">Chưa có cảnh báo nào.</div>';
+      }
+
+      const log = [];
+      function addEvent(e) {
+        log.unshift(e);
+        log.length = Math.min(log.length, 12);
+        $("events").innerHTML =
+          `<table><tr><th>Giờ</th><th>Thiết bị</th><th>Trạng thái</th></tr>` +
+          log
+            .map(
+              (x) =>
+                `<tr><td>${hhmm(x.ts)}</td><td>${esc(x.device_id)}</td><td><span class="tag" style="background:${col(COLORS[x.state])}">${VI[x.state]}</span></td></tr>`,
+            )
+            .join("") +
+          `</table>`;
+      }
+
+      async function loadInitialEvents() {
+        const ev = await api("/events?limit=12");
+        ev.reverse().forEach((e) =>
+          addEvent({ device_id: e.device_id, state: e.state, ts: e.ts }),
+        );
+        if (!ev.length)
+          $("events").innerHTML =
+            '<div class="empty">Đang chờ sự kiện từ thiết bị...</div>';
+      }
+
+      function connect() {
+        if (!TOKEN) return;
+        ws = new WebSocket(
+          (new URL(BACKEND_ORIGIN || location.origin).protocol === "https:"
+            ? "wss://"
+            : "ws://") +
+            new URL(BACKEND_ORIGIN || location.origin).host +
+            "/ws?token=" +
+            encodeURIComponent(TOKEN),
+        );
+        ws.onopen = () => {
+          $("sWs").textContent = "Đang kết nối trực tiếp";
+        };
+        ws.onmessage = (m) => {
+          const d = JSON.parse(m.data);
+          if (d.type === "event") {
+            addEvent(d);
+            loadDevices();
+            loadAlerts();
+          } else loadDevices();
+        };
+        ws.onclose = () => {
+          $("sWs").textContent = "Mất kết nối, đang thử lại...";
+          if (TOKEN) setTimeout(connect, 2000);
+        };
+        clearInterval(pingT);
+        pingT = setInterval(
+          () => ws && ws.readyState === 1 && ws.send("ping"),
+          20000,
+        );
+      }
+
+      const live = $("live");
+      async function startLive() {
+        if (!BACKEND_ORIGIN && CAMERA_STREAM_ORIGIN) {
+          live.src = CAMERA_STREAM_ORIGIN + "/stream?" + Date.now();
+          return;
+        }
+        if (!BACKEND_ORIGIN && !CAMERA_STREAM_ORIGIN) {
+          live.src = "http://" + location.hostname + ":8001/stream?" + Date.now();
+          return;
+        }
+        if (!TOKEN) {
+          $("liveMsg").textContent =
+            "Đăng nhập và chạy camera trên laptop để xem trực tiếp.";
+          $("liveMsg").style.display = "block";
+          return;
+        }
+        try {
+          const { ticket } = await api("/camera/stream-ticket");
+          live.src =
+            BACKEND_ORIGIN +
+            "/api/camera/stream?ticket=" +
+            encodeURIComponent(ticket);
+        } catch (error) {
+          $("liveMsg").textContent = error.message;
+          $("liveMsg").style.display = "block";
+        }
+      }
+      live.onload = () => {
+        $("liveMsg").style.display = "none";
+      };
+      live.onerror = () => {
+        $("liveMsg").style.display = "block";
+        setTimeout(() => TOKEN && startLive(), 5000);
+      };
+
+      function showLogin() {
+        TOKEN = null;
+        ME = null;
+        live.removeAttribute("src");
+        try {
+          localStorage.removeItem("tk");
+        } catch (e) {}
+        if (ws) {
+          ws.onclose = null;
+          ws.close();
+          ws = null;
+        }
+        $("login").style.display = "flex";
+        $("lp").value = "";
+      }
+      function logout() {
+        showLogin();
+      }
+      async function doLogin(e) {
+        e.preventDefault();
+        $("lerr").textContent = "";
+        try {
+          const r = await fetch(BACKEND_ORIGIN + "/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              username: $("lu").value.trim(),
+              password: $("lp").value,
+            }),
+          });
+          const j = await r.json();
+          if (!r.ok)
+            throw new Error(
+              typeof j.detail === "string" ? j.detail : "Đăng nhập thất bại",
+            );
+          TOKEN = j.token;
+          try {
+            localStorage.setItem("tk", TOKEN);
+          } catch (e) {}
+          start();
+        } catch (err) {
+          $("lerr").textContent = BACKEND_ORIGIN
+            ? err.message
+            : "Chưa cấu hình backend. Mở link dashboard kèm địa chỉ ?backend=https://... do quản trị viên cung cấp.";
+        }
+      }
+      async function changePw() {
+        const o = prompt("Mật khẩu hiện tại:");
+        if (o === null) return;
+        const n = prompt("Mật khẩu mới (từ 6 ký tự):");
+        if (n === null) return;
+        try {
+          await post("/me/password", { old_password: o, new_password: n });
+          alert("Đã đổi mật khẩu.");
+        } catch (e) {
+          alert(e.message);
+        }
+      }
+      async function loadUsers() {
+        const u = await api("/users");
+        $("users").innerHTML =
+          `<table><tr><th>Tài khoản</th><th>Vai trò</th><th></th></tr>` +
+          u
+            .map(
+              (x) =>
+                `<tr><td>${esc(x.username)}</td><td>${x.role === "admin" ? "Quản trị" : "Người dùng"}</td><td>${x.username === ME.username ? "" : `<button onclick="delUser('${esc(x.username)}')">Xóa</button>`}</td></tr>`,
+            )
+            .join("") +
+          `</table>`;
+      }
+      async function addUser() {
+        $("uerr").textContent = "";
+        try {
+          await post("/users", {
+            username: $("nu").value.trim(),
+            password: $("np").value,
+            role: $("nr").value,
+          });
+          $("nu").value = "";
+          $("np").value = "";
+          loadUsers();
+        } catch (e) {
+          $("uerr").textContent = e.message;
+        }
+      }
+      async function delUser(n) {
+        if (!confirm("Xóa tài khoản " + n + "?")) return;
+        try {
+          await api("/users/" + encodeURIComponent(n), { method: "DELETE" });
+          loadUsers();
+        } catch (e) {
+          $("uerr").textContent = e.message;
+        }
+      }
+      async function start() {
+        try {
+          ME = await api("/me");
+        } catch (e) {
+          return;
+        }
+        $("login").style.display = "none";
+        $("who").textContent =
+          ME.username + " (" + (isAdmin() ? "quản trị" : "người dùng") + ")";
+        startLive();
+        $("usersPanel").hidden = !isAdmin();
+        if (isAdmin()) loadUsers();
+        updatePushStatus().catch((error) => {
+          $("pushStatus").textContent = error.message;
+        });
+        log.length = 0;
+        loadDevices();
+        loadAlerts();
+        loadInitialEvents();
+        connect();
+        if (!started) {
+          started = true;
+          setInterval(() => {
+            if (TOKEN) {
+              loadDevices().catch(() => {});
+              loadAlerts().catch(() => {});
+            }
+          }, 5000);
+        }
+      }
+      if (TOKEN) start();
+      else showLogin();
+    </script>
+  </body>
+</html>

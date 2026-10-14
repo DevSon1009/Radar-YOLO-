@@ -1,0 +1,19 @@
+{
+  "name": "Radar IoT - Giám sát xâm nhập",
+  "short_name": "Radar IoT",
+  "description": "Giám sát radar và điều khiển còi, đèn",
+  "lang": "vi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f2f4f6",
+  "theme_color": "#16222c",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
